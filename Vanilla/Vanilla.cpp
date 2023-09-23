@@ -49,6 +49,23 @@ VanillaResult Vanilla::Initialize(bool useCLR)
 
         if (m_HookManager.InstallHook(xorstr_("JITHook"), compileMethodAddress, reinterpret_cast<uintptr_t>(CompileMethodHook), reinterpret_cast<uintptr_t*>(&oCompileMethod)) != VanillaResult::Success)
             return VanillaResult::JITFailure;
+
+        const uintptr_t relocateAddressAddress = m_PatternScanner.FindPatternInModule(xorstr_("55 8B EC 57 8B 7D 08 8B 0F 3B 0D"), xorstr_("clr.dll"));
+        if (!relocateAddressAddress)
+            return VanillaResult::RelocateFailure;
+
+        if (m_HookManager.InstallHook(xorstr_("RelocateAddressHook"), relocateAddressAddress, reinterpret_cast<uintptr_t>(RelocateAddressHook), reinterpret_cast<uintptr_t*>(&oRelocateAddress)) != VanillaResult::Success)
+            return VanillaResult::RelocateFailure;
+
+        const uintptr_t allocateCLRStringAddress = m_PatternScanner.FindPatternInModule(xorstr_("53 8B D9 56 57 85 DB 0F"), xorstr_("clr.dll"));
+        if (!allocateCLRStringAddress)
+            return VanillaResult::CLRStringFailure;
+
+        allocateCLRString = reinterpret_cast<fnAllocateCLRString>(allocateCLRStringAddress);
+
+        setCLRStringAddress = m_PatternScanner.FindPatternInModule(xorstr_("89 02 81 F8"), xorstr_("clr.dll"));
+        if (!setCLRStringAddress)
+            return VanillaResult::CLRStringFailure;
     }
 
     return VanillaResult::Success;
